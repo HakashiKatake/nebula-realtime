@@ -1,3 +1,5 @@
+<img width="1536" height="1024" alt="ChatGPT Image Mar 5, 2026, 07_12_34 PM" src="https://github.com/user-attachments/assets/8af175f4-59df-40c2-8b2e-7f511f4e8f9a" />
+
 # NebulaRealtime
 
 **Production-grade realtime multiplayer backend infrastructure** built with Node.js, TypeScript, and distributed systems patterns used by companies like Riot, Discord, and Valve.
