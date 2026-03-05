@@ -1,0 +1,44 @@
+{
+  "name": "nebula-realtime",
+  "version": "1.0.0",
+  "description": "Production-grade realtime multiplayer backend infrastructure",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "dev:worker": "tsx watch src/worker.ts",
+    "start": "node dist/index.js",
+    "start:worker": "node dist/worker.js",
+    "lint": "eslint src/",
+    "load-test": "npx autocannon -c 100 -d 30 http://localhost:3000/health",
+    "db:migrate": "tsx src/db/migrate.ts"
+  },
+  "dependencies": {
+    "fastify": "^4.28.0",
+    "@fastify/cors": "^9.0.1",
+    "@fastify/rate-limit": "^9.1.0",
+    "ws": "^8.17.0",
+    "pg": "^8.12.0",
+    "ioredis": "^5.4.1",
+    "bullmq": "^5.8.0",
+    "bcrypt": "^5.1.1",
+    "jsonwebtoken": "^9.0.2",
+    "prom-client": "^15.1.2",
+    "pino": "^9.1.0",
+    "pino-pretty": "^11.2.0",
+    "dotenv": "^16.4.5",
+    "uuid": "^9.0.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "tsx": "^4.15.0",
+    "@types/node": "^20.14.0",
+    "@types/ws": "^8.5.10",
+    "@types/pg": "^8.11.6",
+    "@types/bcrypt": "^5.0.2",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/uuid": "^9.0.8",
+    "autocannon": "^7.15.0"
+  }
+}
