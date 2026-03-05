@@ -1,0 +1,119 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: nebula_realtime
+      POSTGRES_USER: nebula
+      POSTGRES_PASSWORD: nebula_secret
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U nebula -d nebula_realtime']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '3000:3000'
+      - '3001:3001'
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      WS_PORT: 3001
+      HOST: 0.0.0.0
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: nebula_realtime
+      POSTGRES_USER: nebula
+      POSTGRES_PASSWORD: nebula_secret
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: nebula-jwt-secret-change-me-in-production
+      JWT_EXPIRES_IN: 15m
+      JWT_REFRESH_SECRET: nebula-refresh-secret-change-me-in-production
+      JWT_REFRESH_EXPIRES_IN: 7d
+      SERVER_REGION: us-east
+      SERVER_ID: ws-1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  api-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '3002:3000'
+      - '3003:3001'
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      WS_PORT: 3001
+      HOST: 0.0.0.0
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: nebula_realtime
+      POSTGRES_USER: nebula
+      POSTGRES_PASSWORD: nebula_secret
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: nebula-jwt-secret-change-me-in-production
+      JWT_EXPIRES_IN: 15m
+      JWT_REFRESH_SECRET: nebula-refresh-secret-change-me-in-production
+      JWT_REFRESH_EXPIRES_IN: 7d
+      SERVER_REGION: eu-west
+      SERVER_ID: ws-2
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    environment:
+      NODE_ENV: production
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: nebula_realtime
+      POSTGRES_USER: nebula
+      POSTGRES_PASSWORD: nebula_secret
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: nebula-jwt-secret-change-me-in-production
+      JWT_REFRESH_SECRET: nebula-refresh-secret-change-me-in-production
+      SERVER_REGION: us-east
+      SERVER_ID: worker-1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  redisdata:
