@@ -248,7 +248,11 @@ export class RealtimeServer {
     if (!room?.game) return;
 
     const action = data?.action as GameAction;
-    if (!action) return;
+    if (!action || typeof action !== 'string') return;
+
+    // Whitelist valid actions
+    const validActions: GameAction[] = ['move', 'attack', 'score_event'];
+    if (!validActions.includes(action)) return;
 
     const success = room.game.processAction(session.userId, action, data);
     if (!success) {
@@ -361,11 +365,19 @@ export class RealtimeServer {
       [winner?.userId || null, room.id]
     );
 
-    // Store events for replay
-    for (const event of game.state.events) {
+    // Store events for replay in batch to avoid N individual INSERT queries
+    const events = game.state.events;
+    if (events.length > 0) {
+      const values: any[] = [];
+      const placeholders: string[] = [];
+      for (let i = 0; i < events.length; i++) {
+        const offset = i * 5;
+        placeholders.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5})`);
+        values.push(room.id, events[i].tick, events[i].playerId, events[i].action, JSON.stringify(events[i].data));
+      }
       await query(
-        `INSERT INTO match_events (match_id, tick, player_id, action, data) VALUES ($1, $2, $3, $4, $5)`,
-        [room.id, event.tick, event.playerId, event.action, JSON.stringify(event.data)]
+        `INSERT INTO match_events (match_id, tick, player_id, action, data) VALUES ${placeholders.join(', ')}`,
+        values
       );
     }
 

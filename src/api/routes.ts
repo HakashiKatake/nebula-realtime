@@ -125,7 +125,8 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   app.get('/leaderboard', async (request: FastifyRequest) => {
     const { limit, region } = request.query as { limit?: string; region?: string };
-    const top = await getTopPlayers(parseInt(limit || '10', 10), region);
+    const parsedLimit = Math.max(1, Math.min(100, parseInt(limit || '10', 10) || 10));
+    const top = await getTopPlayers(parsedLimit, region);
     return { leaderboard: top };
   });
 

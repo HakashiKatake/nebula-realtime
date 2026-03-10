@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
 import { env } from '../config/env';
 import { query, transaction } from '../db/pool';
 import { AuthError, ConflictError, ValidationError } from '../utils/errors';
@@ -34,32 +35,38 @@ export async function signup(
   password: string,
   region: string = 'us-east'
 ): Promise<{ user: User; tokens: TokenPair }> {
-  // Check existing
-  const [existing] = await query<{ id: string }>(
-    'SELECT id FROM users WHERE username = $1 OR email = $2',
-    [username, email]
-  );
-  if (existing) {
-    throw new ConflictError('Username or email already exists');
-  }
-
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-  const [user] = await query<User>(
-    `INSERT INTO users (username, email, password_hash, region)
-     VALUES ($1, $2, $3, $4)
-     RETURNING id, username, email, rating, region, created_at`,
-    [username, email, passwordHash, region]
-  );
+  // Atomic signup: transaction wraps user creation + leaderboard init.
+  // Relies on UNIQUE constraints rather than check-then-insert to prevent races.
+  const user = await transaction(async (client) => {
+    let row: User;
+    try {
+      const result = await client.query(
+        `INSERT INTO users (username, email, password_hash, region)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id, username, email, rating, region, created_at`,
+        [username, email, passwordHash, region]
+      );
+      row = result.rows[0] as User;
+    } catch (err: any) {
+      // Handle unique constraint violation (23505)
+      if (err.code === '23505') {
+        throw new ConflictError('Username or email already exists');
+      }
+      throw err;
+    }
+
+    await client.query(
+      `INSERT INTO leaderboard (user_id, username, region) VALUES ($1, $2, $3)
+       ON CONFLICT (user_id) DO NOTHING`,
+      [row.id, row.username, row.region]
+    );
+
+    return row;
+  });
 
   const tokens = await generateTokenPair(user);
-
-  // Initialize leaderboard entry
-  await query(
-    `INSERT INTO leaderboard (user_id, username, region) VALUES ($1, $2, $3)
-     ON CONFLICT (user_id) DO NOTHING`,
-    [user.id, user.username, user.region]
-  );
 
   logger.info({ userId: user.id, username }, 'User registered');
   return { user, tokens };
@@ -146,11 +153,11 @@ async function generateTokenPair(user: User): Promise<TokenPair> {
     region: user.region,
   };
 
-  const accessToken = jwt.sign(payload, env.JWT_SECRET, {
+  const accessToken = jwt.sign({ ...payload, jti: uuidv4() }, env.JWT_SECRET, {
     expiresIn: parseExpiry(env.JWT_EXPIRES_IN) / 1000,
   });
 
-  const refreshToken = jwt.sign(payload, env.JWT_REFRESH_SECRET, {
+  const refreshToken = jwt.sign({ ...payload, jti: uuidv4() }, env.JWT_REFRESH_SECRET, {
     expiresIn: parseExpiry(env.JWT_REFRESH_EXPIRES_IN) / 1000,
   });
 

@@ -2,6 +2,8 @@ import { Pool, PoolClient } from 'pg';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 
+const SLOW_QUERY_THRESHOLD_MS = 500;
+
 const pool = new Pool({
   host: env.POSTGRES_HOST,
   port: env.POSTGRES_PORT,
@@ -11,6 +13,7 @@ const pool = new Pool({
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
+  statement_timeout: 10000, // Kill queries running longer than 10s
 });
 
 pool.on('error', (err) => {
@@ -21,7 +24,13 @@ export async function query<T = any>(text: string, params?: any[]): Promise<T[]>
   const start = Date.now();
   const result = await pool.query(text, params);
   const duration = Date.now() - start;
-  logger.debug({ query: text, duration, rows: result.rowCount }, 'pg query');
+
+  if (duration >= SLOW_QUERY_THRESHOLD_MS) {
+    logger.warn({ query: text, duration, rows: result.rowCount }, 'Slow query detected');
+  } else {
+    logger.debug({ query: text, duration, rows: result.rowCount }, 'pg query');
+  }
+
   return result.rows as T[];
 }
 

@@ -1,0 +1,37 @@
+{
+  "connectionThroughput": {
+    "avg": "1.98",
+    "p50": "1.44",
+    "p90": "2.71",
+    "p99": "12.84",
+    "connected": 30,
+    "errors": 0
+  },
+  "pingLatency": {
+    "avg": "1.29",
+    "p50": "0.77",
+    "p90": "2.49",
+    "p99": "13.91",
+    "min": "0.46",
+    "max": "13.91",
+    "rounds": 50
+  },
+  "concurrentConnections": {
+    "target": 30,
+    "connected": 30,
+    "alive": 30,
+    "errors": 0,
+    "totalConnectTime": "0.07s",
+    "avgConnectTime": "2.40ms"
+  },
+  "messageThroughput": {
+    "sent": 100,
+    "received": 100,
+    "duration": "3.62s",
+    "msgPerSec": "28"
+  },
+  "matchmakingFlow": {
+    "matched": true,
+    "timeToMatch": "1.48s"
+  }
+}

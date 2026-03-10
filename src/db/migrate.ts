@@ -1,5 +1,8 @@
-import { query } from './pool';
+import { query, getClient } from './pool';
 import { logger } from '../utils/logger';
+
+// Advisory lock ID for migration exclusivity across multiple instances
+const MIGRATION_LOCK_ID = 839274;
 
 const migrations = [
   {
@@ -104,24 +107,35 @@ const migrations = [
 ];
 
 export async function runMigrations(): Promise<void> {
-  // Ensure migrations table exists first
-  await query(migrations.find((m) => m.name === '006_create_migrations_table')!.sql);
+  // Acquire exclusive advisory lock so only one instance runs migrations at a time
+  const client = await getClient();
+  try {
+    await client.query('SELECT pg_advisory_lock($1)', [MIGRATION_LOCK_ID]);
+    logger.info('Migration advisory lock acquired');
 
-  for (const migration of migrations) {
-    if (migration.name === '006_create_migrations_table') continue;
+    // Ensure migrations table exists first
+    await client.query(migrations.find((m) => m.name === '006_create_migrations_table')!.sql);
 
-    const [existing] = await query<{ name: string }>(
-      'SELECT name FROM migrations WHERE name = $1',
-      [migration.name]
-    );
+    for (const migration of migrations) {
+      if (migration.name === '006_create_migrations_table') continue;
 
-    if (!existing) {
-      logger.info({ migration: migration.name }, 'Running migration');
-      await query(migration.sql);
-      await query('INSERT INTO migrations (name) VALUES ($1)', [migration.name]);
-      logger.info({ migration: migration.name }, 'Migration completed');
+      const result = await client.query(
+        'SELECT name FROM migrations WHERE name = $1',
+        [migration.name]
+      );
+
+      if (result.rows.length === 0) {
+        logger.info({ migration: migration.name }, 'Running migration');
+        await client.query(migration.sql);
+        await client.query('INSERT INTO migrations (name) VALUES ($1)', [migration.name]);
+        logger.info({ migration: migration.name }, 'Migration completed');
+      }
     }
-  }
 
-  logger.info('All migrations up to date');
+    logger.info('All migrations up to date');
+  } finally {
+    await client.query('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK_ID]);
+    client.release();
+    logger.info('Migration advisory lock released');
+  }
 }

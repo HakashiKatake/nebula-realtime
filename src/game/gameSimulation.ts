@@ -43,12 +43,15 @@ const ARENA_SIZE = 1000;
 const ATTACK_RANGE = 50;
 const ATTACK_DAMAGE = 10;
 const TICK_RATE_MS = 100;
+const ATTACK_COOLDOWN_TICKS = 5; // 500ms cooldown between attacks
+const MAX_MOVE_SPEED = 10;
 
 export class GameSimulation {
   public state: GameState;
   private tickInterval: ReturnType<typeof setInterval> | null = null;
   private onTick: ((state: GameState) => void) | null = null;
   private onEnd: ((state: GameState) => void) | null = null;
+  private lastAttackTick = new Map<string, number>();
 
   constructor(matchId: string, players: { userId: string; username: string }[]) {
     this.state = {
@@ -101,27 +104,27 @@ export class GameSimulation {
     const player = this.state.players.get(playerId);
     if (!player || !player.alive || this.state.status !== 'active') return false;
 
-    const event: GameEvent = {
-      tick: this.state.tick,
-      playerId,
-      action,
-      data,
-      timestamp: Date.now(),
-    };
-
     switch (action) {
       case 'move': {
         const moveData = data as MoveData;
-        const dx = Math.max(-10, Math.min(10, moveData.dx || 0));
-        const dy = Math.max(-10, Math.min(10, moveData.dy || 0));
+        // Server-side validation: clamp movement delta
+        const dx = Math.max(-MAX_MOVE_SPEED, Math.min(MAX_MOVE_SPEED, moveData.dx || 0));
+        const dy = Math.max(-MAX_MOVE_SPEED, Math.min(MAX_MOVE_SPEED, moveData.dy || 0));
         player.x = Math.max(0, Math.min(ARENA_SIZE, player.x + dx));
         player.y = Math.max(0, Math.min(ARENA_SIZE, player.y + dy));
         break;
       }
       case 'attack': {
+        // Enforce attack cooldown
+        const lastAttack = this.lastAttackTick.get(playerId) || 0;
+        if (this.state.tick - lastAttack < ATTACK_COOLDOWN_TICKS) return false;
+
         const attackData = data as AttackData;
+        if (!attackData.targetId) return false;
         const target = this.state.players.get(attackData.targetId);
         if (!target || !target.alive) return false;
+        // Prevent self-attack
+        if (attackData.targetId === playerId) return false;
 
         const dist = Math.sqrt(
           Math.pow(player.x - target.x, 2) + Math.pow(player.y - target.y, 2)
@@ -130,6 +133,7 @@ export class GameSimulation {
         if (dist <= ATTACK_RANGE) {
           target.health = Math.max(0, target.health - ATTACK_DAMAGE);
           player.score += ATTACK_DAMAGE;
+          this.lastAttackTick.set(playerId, this.state.tick);
 
           if (target.health <= 0) {
             target.alive = false;
@@ -146,6 +150,14 @@ export class GameSimulation {
         return false;
     }
 
+    // Use tick as deterministic timestamp instead of wall clock
+    const event: GameEvent = {
+      tick: this.state.tick,
+      playerId,
+      action,
+      data,
+      timestamp: this.state.tick * TICK_RATE_MS,
+    };
     this.state.events.push(event);
     return true;
   }

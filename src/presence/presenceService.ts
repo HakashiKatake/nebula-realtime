@@ -13,13 +13,38 @@ export async function setPresence(
   serverId: string
 ): Promise<void> {
   const key = `presence:${userId}`;
+
+  // Decrement gauge for the previous status to prevent metric drift
+  const existingData = await redis.get(key);
+  if (existingData) {
+    try {
+      const existing = JSON.parse(existingData);
+      if (existing.status && existing.status !== status) {
+        activePlayersGauge.labels({ status: existing.status }).dec();
+      }
+    } catch { /* ignore parse errors on stale data */ }
+  }
+
   const data = JSON.stringify({ status, serverId, updatedAt: Date.now() });
   await redis.set(key, data, 'EX', PRESENCE_TTL);
 
   // Publish presence update for cross-server awareness
   await redisPub.publish('presence:updates', JSON.stringify({ userId, status, serverId }));
 
-  activePlayersGauge.labels({ status }).inc();
+  // Only increment if this is a new presence entry or status changed
+  if (!existingData) {
+    activePlayersGauge.labels({ status }).inc();
+  } else {
+    try {
+      const existing = JSON.parse(existingData);
+      if (existing.status !== status) {
+        activePlayersGauge.labels({ status }).inc();
+      }
+    } catch {
+      activePlayersGauge.labels({ status }).inc();
+    }
+  }
+
   logger.debug({ userId, status, serverId }, 'Presence updated');
 }
 

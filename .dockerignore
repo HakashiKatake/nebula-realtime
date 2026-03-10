@@ -1,0 +1,10 @@
+node_modules
+dist
+.git
+.env
+*.md
+benchmarks
+dashboard
+project-docs
+.dockerignore
+docker-compose.yml

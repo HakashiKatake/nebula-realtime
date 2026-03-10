@@ -1,5 +1,5 @@
 import { redis } from '../redis/client';
-import { query } from '../db/pool';
+import { query, transaction } from '../db/pool';
 import { logger } from '../utils/logger';
 
 const LEADERBOARD_KEY = 'leaderboard:global';
@@ -36,16 +36,27 @@ export async function getTopPlayers(
   const key = region ? `${REGIONAL_PREFIX}${region}` : LEADERBOARD_KEY;
   const results = await redis.zrevrange(key, 0, limit - 1, 'WITHSCORES');
 
+  // Collect all user IDs first
+  const userIds: string[] = [];
+  for (let i = 0; i < results.length; i += 2) {
+    userIds.push(results[i]);
+  }
+
+  if (userIds.length === 0) return [];
+
+  // Batch fetch all usernames in one HMGET call instead of N individual HGET calls
+  const usernames = await redis.hmget('leaderboard:usernames', ...userIds);
+
   const entries: LeaderboardEntry[] = [];
   for (let i = 0; i < results.length; i += 2) {
     const userId = results[i];
     const score = parseInt(results[i + 1], 10);
-    const username = (await redis.hget('leaderboard:usernames', userId)) || 'Unknown';
+    const idx = Math.floor(i / 2);
     entries.push({
       userId,
-      username,
+      username: usernames[idx] || 'Unknown',
       score,
-      rank: Math.floor(i / 2) + 1,
+      rank: idx + 1,
     });
   }
 
@@ -67,12 +78,17 @@ export async function getPlayerRank(
 export async function persistLeaderboard(): Promise<void> {
   const entries = await getTopPlayers(1000);
 
-  for (const entry of entries) {
-    await query(
-      `UPDATE leaderboard SET score = $1, updated_at = NOW() WHERE user_id = $2`,
-      [entry.score, entry.userId]
-    );
-  }
+  if (entries.length === 0) return;
+
+  // Batch persist in a single transaction instead of N individual UPDATE queries
+  await transaction(async (client) => {
+    for (const entry of entries) {
+      await client.query(
+        `UPDATE leaderboard SET score = $1, updated_at = NOW() WHERE user_id = $2`,
+        [entry.score, entry.userId]
+      );
+    }
+  });
 
   logger.info({ count: entries.length }, 'Leaderboard persisted to PostgreSQL');
 }

@@ -16,9 +16,15 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+# Run as non-root user for security
+RUN addgroup -S nebula && adduser -S nebula -G nebula
+
 COPY package.json package-lock.json* ./
 RUN npm install --omit=dev
 
 COPY --from=builder /app/dist ./dist
+
+RUN chown -R nebula:nebula /app
+USER nebula
 
 CMD ["node", "dist/worker.js"]

@@ -2,20 +2,20 @@
   {
     "title": "GET /health",
     "requests": {
-      "total": 662859,
-      "average": 44191.47,
-      "mean": 44191.47,
-      "p50": 49631
+      "total": 725504,
+      "average": 48365.34,
+      "mean": 48365.34,
+      "p50": 50431
     },
     "latency": {
-      "avg": 22.13,
-      "p50": 17,
-      "p90": 37,
-      "p99": 47,
-      "max": 1197
+      "avg": 20.17,
+      "p50": 18,
+      "p90": 21,
+      "p99": 43,
+      "max": 1541
     },
     "throughput": {
-      "avgMBps": "12.64"
+      "avgMBps": "13.81"
     },
     "errors": 0,
     "timeouts": 0,
@@ -25,116 +25,139 @@
   {
     "title": "POST /auth/signup",
     "requests": {
-      "total": 162804,
-      "average": 14801.1,
-      "mean": 14801.1,
-      "p50": 14567
+      "total": 8,
+      "average": 0.8,
+      "mean": 0.8,
+      "p50": 0.8
     },
     "latency": {
-      "avg": 2.91,
-      "p50": 2,
-      "p90": 4,
-      "p99": 7,
-      "max": 3479
+      "avg": 7543.13,
+      "p50": 6701,
+      "p90": 8495,
+      "p99": 8495,
+      "max": 8495
     },
     "throughput": {
-      "avgMBps": "3.87"
+      "avgMBps": "0.00"
     },
-    "errors": 0,
-    "timeouts": 0,
-    "duration": 11.01,
+    "errors": 42,
+    "timeouts": 42,
+    "duration": 10.02,
     "connections": 50
   },
   {
     "title": "POST /auth/login",
     "requests": {
-      "total": 207127,
-      "average": 20712,
-      "mean": 20712,
-      "p50": 21119
+      "total": 25,
+      "average": 2.5,
+      "mean": 2.5,
+      "p50": 3
     },
     "latency": {
-      "avg": 1.86,
-      "p50": 2,
-      "p90": 3,
-      "p99": 6,
-      "max": 135
+      "avg": 5074.57,
+      "p50": 5061,
+      "p90": 8463,
+      "p99": 8762,
+      "max": 8762
     },
     "throughput": {
-      "avgMBps": "5.41"
+      "avgMBps": "0.00"
+    },
+    "errors": 25,
+    "timeouts": 25,
+    "duration": 10.04,
+    "connections": 50
+  },
+  {
+    "title": "GET /profile (auth)",
+    "requests": {
+      "total": 1086,
+      "average": 108.6,
+      "mean": 108.6,
+      "p50": 106
+    },
+    "latency": {
+      "avg": 430.89,
+      "p50": 308,
+      "p90": 497,
+      "p99": 3842,
+      "max": 7339
+    },
+    "throughput": {
+      "avgMBps": "0.04"
     },
     "errors": 0,
     "timeouts": 0,
-    "duration": 10.01,
+    "duration": 10.02,
     "connections": 50
   },
   {
     "title": "GET /leaderboard",
     "requests": {
-      "total": 457391,
-      "average": 30494.94,
-      "mean": 30494.94,
-      "p50": 30719
+      "total": 25030,
+      "average": 1668.8,
+      "mean": 1668.8,
+      "p50": 1781
     },
     "latency": {
-      "avg": 32.28,
-      "p50": 29,
-      "p90": 42,
-      "p99": 57,
-      "max": 766
+      "avg": 508.34,
+      "p50": 312,
+      "p90": 790,
+      "p99": 5695,
+      "max": 9997
     },
     "throughput": {
-      "avgMBps": "5.90"
+      "avgMBps": "0.32"
     },
-    "errors": 0,
-    "timeouts": 0,
-    "duration": 15.01,
+    "errors": 140,
+    "timeouts": 140,
+    "duration": 15.06,
     "connections": 100
   },
   {
     "title": "GET /matchmaking/status",
     "requests": {
-      "total": 405049,
-      "average": 27006.4,
-      "mean": 27006.4,
-      "p50": 28751
+      "total": 169331,
+      "average": 11288.94,
+      "mean": 11288.94,
+      "p50": 13063
     },
     "latency": {
-      "avg": 36.51,
-      "p50": 31,
-      "p90": 48,
-      "p99": 96,
-      "max": 567
+      "avg": 87.87,
+      "p50": 71,
+      "p90": 94,
+      "p99": 302,
+      "max": 4628
     },
     "throughput": {
-      "avgMBps": "5.92"
+      "avgMBps": "2.48"
     },
     "errors": 0,
     "timeouts": 0,
-    "duration": 15.01,
+    "duration": 15.03,
     "connections": 100
   },
   {
     "title": "GET /health (api-2)",
     "requests": {
-      "total": 602992,
-      "average": 54820.37,
-      "mean": 54820.37,
-      "p50": 56223
+      "total": 483587,
+      "average": 48364,
+      "mean": 48364,
+      "p50": 51135
     },
     "latency": {
-      "avg": 17.73,
-      "p50": 16,
-      "p90": 19,
-      "p99": 30,
-      "max": 1210
+      "avg": 20.12,
+      "p50": 18,
+      "p90": 22,
+      "p99": 41,
+      "max": 1570
     },
     "throughput": {
-      "avgMBps": "15.68"
+      "avgMBps": "13.83"
     },
     "errors": 0,
     "timeouts": 0,
-    "duration": 11.01,
+    "duration": 10.01,
     "connections": 100
   }
 ]

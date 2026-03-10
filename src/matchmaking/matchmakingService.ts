@@ -72,14 +72,14 @@ export async function processMatchmaking(region: string): Promise<MatchResult | 
 
     if (queueSize < MATCH_SIZE) return null;
 
-    // Get all players sorted by rating
-    const members = await redis.zrange(queueKey, 0, -1, 'WITHSCORES');
+    // Get all players sorted by rating, keeping raw member strings for exact removal
+    const rawMembers = await redis.zrange(queueKey, 0, -1, 'WITHSCORES');
 
-    const players: (QueueEntry & { score: number })[] = [];
-    for (let i = 0; i < members.length; i += 2) {
-      const entry: QueueEntry = JSON.parse(members[i]);
-      const score = parseInt(members[i + 1], 10);
-      players.push({ ...entry, score });
+    const players: { entry: QueueEntry; raw: string }[] = [];
+    for (let i = 0; i < rawMembers.length; i += 2) {
+      const raw = rawMembers[i];
+      const entry: QueueEntry = JSON.parse(raw);
+      players.push({ entry, raw });
     }
 
     // Find best pair within rating range
@@ -87,41 +87,32 @@ export async function processMatchmaking(region: string): Promise<MatchResult | 
       const p1 = players[i];
       const p2 = players[i + 1];
 
-      const ratingDiff = Math.abs(p1.rating - p2.rating);
+      const ratingDiff = Math.abs(p1.entry.rating - p2.entry.rating);
 
       // Check timeout — expand range for waiting players
-      const p1WaitTime = Date.now() - p1.joinedAt;
-      const p2WaitTime = Date.now() - p2.joinedAt;
+      const p1WaitTime = Date.now() - p1.entry.joinedAt;
+      const p2WaitTime = Date.now() - p2.entry.joinedAt;
       const maxWait = Math.max(p1WaitTime, p2WaitTime);
       const expandedRange = env.MATCHMAKING_RATING_RANGE + Math.floor(maxWait / 5000) * 50;
 
       if (ratingDiff <= expandedRange) {
-        // Remove matched players from queue
-        await redis.zrem(queueKey, JSON.stringify({ ...p1, score: undefined }));
-        await redis.zrem(queueKey, JSON.stringify({ ...p2, score: undefined }));
-        // Also try with the original serialized entries
-        const allMembers = await redis.zrange(queueKey, 0, -1);
-        for (const m of allMembers) {
-          const parsed: QueueEntry = JSON.parse(m);
-          if (parsed.userId === p1.userId || parsed.userId === p2.userId) {
-            await redis.zrem(queueKey, m);
-          }
-        }
+        // Remove matched players using the exact raw strings from Redis
+        await redis.zrem(queueKey, p1.raw, p2.raw);
 
-        await redis.del(`${PLAYER_KEY_PREFIX}${p1.userId}`);
-        await redis.del(`${PLAYER_KEY_PREFIX}${p2.userId}`);
+        await redis.del(`${PLAYER_KEY_PREFIX}${p1.entry.userId}`);
+        await redis.del(`${PLAYER_KEY_PREFIX}${p2.entry.userId}`);
 
         matchmakingQueueGauge.labels({ region }).dec(2);
 
         const matchId = uuidv4();
         const match: MatchResult = {
           matchId,
-          players: [p1, p2],
+          players: [p1.entry, p2.entry],
           region,
         };
 
         matchesCreatedCounter.labels({ region }).inc();
-        logger.info({ matchId, players: [p1.userId, p2.userId], region }, 'Match created');
+        logger.info({ matchId, players: [p1.entry.userId, p2.entry.userId], region }, 'Match created');
 
         return match;
       }
