@@ -16,7 +16,7 @@
 | Metric | Measured |
 |--------|----------|
 | HTTP throughput (single instance) | **54,820 req/s** |
-| Auth operations (bcrypt + JWT) | **20,712 req/s** |
+| Auth operations (bcrypt + JWT) | **~20k req/s (local benchmark with 100 concurrent connections using autocannon)** |
 | WebSocket round-trip latency | **1.33 ms** avg |
 | Connection handshake | **1.38 ms** avg |
 | Message delivery | **100%** zero-loss |
