@@ -11,6 +11,9 @@
     "start:worker": "node dist/worker.js",
     "lint": "eslint src/",
     "load-test": "npx autocannon -c 100 -d 30 http://localhost:3000/health",
+    "bench:http": "node benchmarks/http-bench.js",
+    "bench:ws": "node benchmarks/ws-bench.js",
+    "bench:all": "node benchmarks/http-bench.js && node benchmarks/ws-bench.js",
     "db:migrate": "tsx src/db/migrate.ts"
   },
   "dependencies": {

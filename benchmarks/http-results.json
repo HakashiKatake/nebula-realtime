@@ -1,0 +1,140 @@
+[
+  {
+    "title": "GET /health",
+    "requests": {
+      "total": 662859,
+      "average": 44191.47,
+      "mean": 44191.47,
+      "p50": 49631
+    },
+    "latency": {
+      "avg": 22.13,
+      "p50": 17,
+      "p90": 37,
+      "p99": 47,
+      "max": 1197
+    },
+    "throughput": {
+      "avgMBps": "12.64"
+    },
+    "errors": 0,
+    "timeouts": 0,
+    "duration": 15.03,
+    "connections": 100
+  },
+  {
+    "title": "POST /auth/signup",
+    "requests": {
+      "total": 162804,
+      "average": 14801.1,
+      "mean": 14801.1,
+      "p50": 14567
+    },
+    "latency": {
+      "avg": 2.91,
+      "p50": 2,
+      "p90": 4,
+      "p99": 7,
+      "max": 3479
+    },
+    "throughput": {
+      "avgMBps": "3.87"
+    },
+    "errors": 0,
+    "timeouts": 0,
+    "duration": 11.01,
+    "connections": 50
+  },
+  {
+    "title": "POST /auth/login",
+    "requests": {
+      "total": 207127,
+      "average": 20712,
+      "mean": 20712,
+      "p50": 21119
+    },
+    "latency": {
+      "avg": 1.86,
+      "p50": 2,
+      "p90": 3,
+      "p99": 6,
+      "max": 135
+    },
+    "throughput": {
+      "avgMBps": "5.41"
+    },
+    "errors": 0,
+    "timeouts": 0,
+    "duration": 10.01,
+    "connections": 50
+  },
+  {
+    "title": "GET /leaderboard",
+    "requests": {
+      "total": 457391,
+      "average": 30494.94,
+      "mean": 30494.94,
+      "p50": 30719
+    },
+    "latency": {
+      "avg": 32.28,
+      "p50": 29,
+      "p90": 42,
+      "p99": 57,
+      "max": 766
+    },
+    "throughput": {
+      "avgMBps": "5.90"
+    },
+    "errors": 0,
+    "timeouts": 0,
+    "duration": 15.01,
+    "connections": 100
+  },
+  {
+    "title": "GET /matchmaking/status",
+    "requests": {
+      "total": 405049,
+      "average": 27006.4,
+      "mean": 27006.4,
+      "p50": 28751
+    },
+    "latency": {
+      "avg": 36.51,
+      "p50": 31,
+      "p90": 48,
+      "p99": 96,
+      "max": 567
+    },
+    "throughput": {
+      "avgMBps": "5.92"
+    },
+    "errors": 0,
+    "timeouts": 0,
+    "duration": 15.01,
+    "connections": 100
+  },
+  {
+    "title": "GET /health (api-2)",
+    "requests": {
+      "total": 602992,
+      "average": 54820.37,
+      "mean": 54820.37,
+      "p50": 56223
+    },
+    "latency": {
+      "avg": 17.73,
+      "p50": 16,
+      "p90": 19,
+      "p99": 30,
+      "max": 1210
+    },
+    "throughput": {
+      "avgMBps": "15.68"
+    },
+    "errors": 0,
+    "timeouts": 0,
+    "duration": 11.01,
+    "connections": 100
+  }
+]
