@@ -1,0 +1,113 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --nebula-bg: #0a0e17;
+  --nebula-surface: #111827;
+  --nebula-surface2: #1a2235;
+  --nebula-border: #2a3450;
+  --nebula-accent: #6366f1;
+  --nebula-accent2: #818cf8;
+  --nebula-green: #22c55e;
+  --nebula-red: #ef4444;
+  --nebula-yellow: #eab308;
+  --nebula-cyan: #06b6d4;
+  --nebula-purple: #a855f7;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--nebula-bg);
+  color: #e2e8f0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+}
+
+/* React Flow overrides */
+.react-flow__background {
+  background: var(--nebula-bg) !important;
+}
+
+.react-flow__minimap {
+  background: var(--nebula-surface) !important;
+  border: 1px solid var(--nebula-border) !important;
+  border-radius: 8px !important;
+}
+
+.react-flow__controls {
+  border: 1px solid var(--nebula-border) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+
+.react-flow__controls button {
+  background: var(--nebula-surface) !important;
+  border-color: var(--nebula-border) !important;
+  color: #94a3b8 !important;
+  fill: #94a3b8 !important;
+}
+
+.react-flow__controls button:hover {
+  background: var(--nebula-surface2) !important;
+  color: #e2e8f0 !important;
+  fill: #e2e8f0 !important;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--nebula-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--nebula-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a4560;
+}
+
+/* Animated edge */
+@keyframes dashdraw {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+.animated-edge {
+  stroke-dasharray: 8 4;
+  animation: dashdraw 0.8s linear infinite;
+}
+
+.animated-edge-active {
+  stroke-dasharray: 8 4;
+  animation: dashdraw 0.4s linear infinite;
+  filter: drop-shadow(0 0 3px var(--nebula-accent));
+}
+
+/* Node glow effect */
+.node-glow {
+  filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.3));
+}
+
+.node-glow-green {
+  filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.3));
+}
+
+.node-glow-red {
+  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.3));
+}
+
+.node-glow-cyan {
+  filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.3));
+}

@@ -1,0 +1,1565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NebulaRealtime — Live Dashboard</title>
+  <style>
+    :root {
+      --bg: #0a0e17;
+      --surface: #111827;
+      --surface2: #1a2235;
+      --border: #2a3450;
+      --accent: #6366f1;
+      --accent2: #818cf8;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #eab308;
+      --orange: #f97316;
+      --cyan: #06b6d4;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --radius: 10px;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+    header {
+      background: linear-gradient(135deg, #111827 0%, #1e1b4b 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      background: linear-gradient(90deg, #818cf8, #06b6d4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    header .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 8px;
+      animation: pulse 2s infinite;
+    }
+    header .status-dot.ok { background: var(--green); }
+    header .status-dot.err { background: var(--red); animation: none; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .header-info { display:flex; align-items:center; gap:16px; font-size:13px; color:var(--muted); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 300px 1fr 320px;
+      grid-template-rows: auto 1fr;
+      gap: 0;
+      height: calc(100vh - 57px);
+    }
+
+    /* Left Panel: Controls */
+    .panel-left {
+      grid-row: 1 / -1;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    /* Center: Main view */
+    .panel-center {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Right Panel: Live feed */
+    .panel-right {
+      grid-row: 1 / -1;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .section {
+      margin-bottom: 16px;
+    }
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--muted);
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .stat-card {
+      background: var(--surface2);
+      border-radius: var(--radius);
+      padding: 12px;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+    .stat-card .value {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--accent2);
+    }
+    .stat-card .label {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      width: 100%;
+    }
+    button:hover { background: var(--accent2); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button.danger { background: var(--red); }
+    button.danger:hover { background: #dc2626; }
+    button.success { background: var(--green); }
+    button.success:hover { background: #16a34a; }
+    button.secondary { background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
+    button.secondary:hover { background: var(--border); }
+
+    input, select {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 13px;
+      width: 100%;
+      outline: none;
+    }
+    input:focus, select:focus { border-color: var(--accent); }
+    label { font-size: 12px; color: var(--muted); display:block; margin-bottom:4px; }
+    .form-row { margin-bottom: 10px; }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 0;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .tab {
+      padding: 10px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent2); border-bottom-color: var(--accent); }
+
+    .tab-content { display: none; flex: 1; overflow: hidden; }
+    .tab-content.active { display: flex; flex-direction: column; }
+
+    /* Arena Canvas */
+    .arena-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      position: relative;
+    }
+    #arenaCanvas {
+      background: #0c1220;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      max-width: 100%;
+      max-height: 100%;
+    }
+    .arena-legend {
+      position: absolute;
+      bottom: 24px;
+      left: 24px;
+      font-size: 11px;
+      color: var(--muted);
+      background: rgba(10,14,23,0.85);
+      padding: 8px 12px;
+      border-radius: 6px;
+    }
+
+    /* Metrics Chart */
+    .chart-container {
+      flex: 1;
+      padding: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .chart-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      flex: 1;
+    }
+    .chart-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+    }
+    .chart-box .chart-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .chart-box canvas {
+      flex: 1;
+      width: 100%;
+    }
+
+    /* Queue visualization */
+    .queue-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 16px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .queue-region {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+    }
+    .queue-region h4 {
+      font-size: 13px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .queue-region h4 .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .queue-bar {
+      height: 24px;
+      background: var(--bg);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    .queue-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s ease;
+      display: flex;
+      align-items: center;
+      padding-left: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    /* Leaderboard */
+    .leaderboard-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+    .lb-entry {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      margin-bottom: 4px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+    }
+    .lb-rank {
+      font-size: 14px;
+      font-weight: 800;
+      width: 28px;
+      text-align: center;
+      color: var(--accent2);
+    }
+    .lb-rank.gold { color: #eab308; }
+    .lb-rank.silver { color: #94a3b8; }
+    .lb-rank.bronze { color: #d97706; }
+    .lb-name { flex:1; font-size:13px; font-weight:600; }
+    .lb-score { font-size:14px; font-weight:700; color: var(--cyan); }
+
+    /* Live Feed */
+    .feed-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .feed-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+    .feed-item {
+      font-size: 11px;
+      padding: 5px 8px;
+      border-radius: 4px;
+      margin-bottom: 2px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      word-break: break-all;
+      line-height: 1.5;
+    }
+    .feed-item.info { color: var(--cyan); }
+    .feed-item.success { color: var(--green); }
+    .feed-item.warn { color: var(--yellow); }
+    .feed-item.error { color: var(--red); }
+    .feed-item.ws { color: var(--accent2); }
+    .feed-item .ts { color: var(--muted); margin-right: 6px; }
+
+    /* Users list */
+    .user-list {
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 8px;
+    }
+    .user-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      font-size: 12px;
+      border-radius: 4px;
+      margin-bottom: 2px;
+      background: var(--surface2);
+    }
+    .user-item .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .user-item .uname { flex:1; font-weight:600; }
+    .user-item .ustatus { font-size:10px; color:var(--muted); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width:6px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+    ::-webkit-scrollbar-thumb:hover { background:var(--muted); }
+
+    /* Load test progress */
+    .progress-bar {
+      height: 6px;
+      background: var(--bg);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--cyan));
+      border-radius: 3px;
+      transition: width 0.3s;
+    }
+
+    .badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .badge.online { background: rgba(34,197,94,0.15); color: var(--green); }
+    .badge.in_queue { background: rgba(234,179,8,0.15); color: var(--yellow); }
+    .badge.in_match { background: rgba(99,102,241,0.15); color: var(--accent2); }
+    .badge.offline { background: rgba(148,163,184,0.1); color: var(--muted); }
+
+    .match-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+    .match-card h4 { font-size: 13px; margin-bottom: 6px; }
+    .match-players {
+      display: flex;
+      gap: 10px;
+      font-size: 12px;
+    }
+    .match-player {
+      flex: 1;
+      text-align: center;
+      padding: 6px;
+      border-radius: 6px;
+      background: var(--bg);
+    }
+    .match-player .hp-bar {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-top: 4px;
+      overflow: hidden;
+    }
+    .match-player .hp-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .empty-state .icon { font-size: 32px; margin-bottom: 10px; }
+
+    .btn-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .btn-row button { flex:1; }
+
+    /* Active matches in center panel */
+    .matches-grid {
+      padding: 16px;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>⚡ NebulaRealtime Dashboard</h1>
+    <div class="header-info">
+      <span><span class="status-dot ok" id="serverDot"></span>Server: <span id="headerServerId">—</span></span>
+      <span>Region: <span id="headerRegion">—</span></span>
+      <span>Uptime: <span id="headerUptime">—</span></span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- LEFT PANEL: Controls -->
+    <div class="panel-left">
+      <!-- System Stats -->
+      <div class="section">
+        <div class="section-title">System Overview</div>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="value" id="statUsers">0</div>
+            <div class="label">Users</div>
+          </div>
+          <div class="stat-card">
+            <div class="value" id="statConnected">0</div>
+            <div class="label">Connected</div>
+          </div>
+          <div class="stat-card">
+            <div class="value" id="statInQueue">0</div>
+            <div class="label">In Queue</div>
+          </div>
+          <div class="stat-card">
+            <div class="value" id="statMatches">0</div>
+            <div class="label">Active Matches</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add Users -->
+      <div class="section">
+        <div class="section-title">Simulate Users</div>
+        <div class="form-row">
+          <label>Number of Users</label>
+          <input type="number" id="userCount" value="2" min="1" max="50">
+        </div>
+        <div class="form-row">
+          <label>Region</label>
+          <select id="userRegion">
+            <option value="us-east">US East</option>
+            <option value="eu-west">EU West</option>
+            <option value="asia">Asia</option>
+          </select>
+        </div>
+        <button id="btnAddUsers" onclick="addSimulatedUsers()">+ Add Users</button>
+        <div class="btn-row">
+          <button class="secondary" onclick="connectAllUsers()">Connect All</button>
+          <button class="secondary" onclick="disconnectAllUsers()">Disconnect All</button>
+        </div>
+        <div class="progress-bar" id="addProgress" style="display:none">
+          <div class="progress-fill" id="addProgressFill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- Matchmaking -->
+      <div class="section">
+        <div class="section-title">Matchmaking</div>
+        <button class="success" onclick="queueAllConnected()">Queue All Connected</button>
+        <div class="btn-row">
+          <button class="secondary" onclick="dequeueAll()">Dequeue All</button>
+        </div>
+      </div>
+
+      <!-- Load Testing -->
+      <div class="section">
+        <div class="section-title">Load Testing</div>
+        <div class="form-row">
+          <label>Concurrent Users</label>
+          <input type="number" id="loadUsers" value="10" min="1" max="200">
+        </div>
+        <div class="form-row">
+          <label>Auto-actions per user</label>
+          <select id="loadAction">
+            <option value="connect_only">Connect Only</option>
+            <option value="connect_queue">Connect + Queue</option>
+            <option value="full_cycle">Full Cycle (Connect→Queue→Play)</option>
+          </select>
+        </div>
+        <button class="success" id="btnLoadTest" onclick="startLoadTest()">🚀 Start Load Test</button>
+        <button class="danger" id="btnStopLoad" onclick="stopLoadTest()" style="display:none;margin-top:6px">Stop Load Test</button>
+        <div class="progress-bar" id="loadProgress" style="display:none">
+          <div class="progress-fill" id="loadProgressFill" style="width:0%"></div>
+        </div>
+        <div id="loadStats" style="margin-top:8px;font-size:11px;color:var(--muted);display:none"></div>
+      </div>
+
+      <!-- Active Users -->
+      <div class="section">
+        <div class="section-title">Simulated Users <span id="userCountBadge" style="font-size:10px;color:var(--accent2)">(0)</span></div>
+        <div class="user-list" id="userList"></div>
+      </div>
+    </div>
+
+    <!-- CENTER PANEL -->
+    <div class="panel-center">
+      <div class="tabs">
+        <div class="tab active" data-tab="arena" onclick="switchTab('arena')">🎮 Arena</div>
+        <div class="tab" data-tab="queues" onclick="switchTab('queues')">📊 Queues</div>
+        <div class="tab" data-tab="matches" onclick="switchTab('matches')">⚔️ Matches</div>
+        <div class="tab" data-tab="leaderboard" onclick="switchTab('leaderboard')">🏆 Leaderboard</div>
+        <div class="tab" data-tab="metrics" onclick="switchTab('metrics')">📈 Metrics</div>
+      </div>
+
+      <!-- Arena Tab -->
+      <div class="tab-content active" id="tab-arena">
+        <div class="arena-wrap">
+          <canvas id="arenaCanvas" width="600" height="600"></canvas>
+          <div class="arena-legend">
+            <span style="color:var(--green)">●</span> Alive &nbsp;
+            <span style="color:var(--red)">●</span> Dead &nbsp;
+            <span style="color:var(--yellow)">⚡</span> Attack &nbsp;
+            Grid: 1000×1000
+          </div>
+        </div>
+      </div>
+
+      <!-- Queues Tab -->
+      <div class="tab-content" id="tab-queues">
+        <div class="queue-list" id="queueList">
+          <div class="queue-region">
+            <h4><span class="dot" style="background:var(--green)"></span> US East</h4>
+            <div class="queue-bar"><div class="queue-bar-fill" id="qbar-us-east" style="width:0%;background:var(--green)">0</div></div>
+          </div>
+          <div class="queue-region">
+            <h4><span class="dot" style="background:var(--cyan)"></span> EU West</h4>
+            <div class="queue-bar"><div class="queue-bar-fill" id="qbar-eu-west" style="width:0%;background:var(--cyan)">0</div></div>
+          </div>
+          <div class="queue-region">
+            <h4><span class="dot" style="background:var(--orange)"></span> Asia</h4>
+            <div class="queue-bar"><div class="queue-bar-fill" id="qbar-asia" style="width:0%;background:var(--orange)">0</div></div>
+          </div>
+        </div>
+        <div id="queueUsers" style="padding:16px;overflow-y:auto;flex:1"></div>
+      </div>
+
+      <!-- Matches Tab -->
+      <div class="tab-content" id="tab-matches">
+        <div class="matches-grid" id="matchesList">
+          <div class="empty-state">
+            <div class="icon">⚔️</div>
+            No active matches. Queue users to start matchmaking.
+          </div>
+        </div>
+      </div>
+
+      <!-- Leaderboard Tab -->
+      <div class="tab-content" id="tab-leaderboard">
+        <div class="leaderboard-list" id="leaderboardList">
+          <div class="empty-state">
+            <div class="icon">🏆</div>
+            No leaderboard data yet. Play some matches!
+          </div>
+        </div>
+      </div>
+
+      <!-- Metrics Tab -->
+      <div class="tab-content" id="tab-metrics">
+        <div class="chart-container">
+          <div class="chart-row">
+            <div class="chart-box">
+              <div class="chart-label">Connections Over Time</div>
+              <canvas id="chartConnections"></canvas>
+            </div>
+            <div class="chart-box">
+              <div class="chart-label">Messages/sec</div>
+              <canvas id="chartMessages"></canvas>
+            </div>
+          </div>
+          <div class="chart-row">
+            <div class="chart-box">
+              <div class="chart-label">Queue Sizes</div>
+              <canvas id="chartQueues"></canvas>
+            </div>
+            <div class="chart-box">
+              <div class="chart-label">Active Matches</div>
+              <canvas id="chartMatches"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL: Live Feed -->
+    <div class="panel-right">
+      <div class="feed-header">
+        Live Event Feed
+        <button class="secondary" style="width:auto;padding:4px 8px;font-size:10px" onclick="clearFeed()">Clear</button>
+      </div>
+      <div class="feed-list" id="feedList"></div>
+    </div>
+  </div>
+
+<script>
+// ===================== STATE =====================
+const API_BASE = window.location.origin;
+const WS_URL = `ws://${window.location.hostname}:3001`;
+
+const state = {
+  users: [],          // { id, username, email, token, refreshToken, region, rating, ws, status, wsStatus }
+  matches: new Map(), // matchId -> { ... }
+  arenaState: null,   // Current game state from WS
+  health: null,
+  queues: { 'us-east': 0, 'eu-west': 0, 'asia': 0 },
+  loadTestRunning: false,
+  loadTestAbort: null,
+  userCounter: 0,
+  // Chart data
+  chartData: {
+    connections: [],
+    messages: [],
+    queues: [],
+    matches: [],
+  },
+  messageCount: 0,
+  lastMessageCount: 0,
+};
+
+// ===================== FEED =====================
+function feed(msg, type = 'info') {
+  const list = document.getElementById('feedList');
+  const item = document.createElement('div');
+  item.className = `feed-item ${type}`;
+  const now = new Date();
+  const ts = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}.${now.getMilliseconds().toString().padStart(3,'0')}`;
+  item.innerHTML = `<span class="ts">${ts}</span>${escapeHtml(msg)}`;
+  list.appendChild(item);
+  if (list.children.length > 500) list.removeChild(list.firstChild);
+  list.scrollTop = list.scrollHeight;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function clearFeed() {
+  document.getElementById('feedList').innerHTML = '';
+}
+
+// ===================== TABS =====================
+function switchTab(tabName) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.toggle('active', t.id === `tab-${tabName}`));
+  if (tabName === 'metrics') setTimeout(drawAllCharts, 50);
+}
+
+// ===================== API HELPERS =====================
+async function apiPost(path, body) {
+  const resp = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+  return data;
+}
+
+async function apiGet(path, token = null) {
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const resp = await fetch(`${API_BASE}${path}`, { headers });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${resp.status}`);
+  }
+  return resp.json();
+}
+
+// ===================== USER SIMULATION =====================
+async function addSimulatedUsers() {
+  const count = parseInt(document.getElementById('userCount').value) || 2;
+  const region = document.getElementById('userRegion').value;
+  const btn = document.getElementById('btnAddUsers');
+  const bar = document.getElementById('addProgress');
+  const fill = document.getElementById('addProgressFill');
+
+  btn.disabled = true;
+  bar.style.display = 'block';
+  feed(`Creating ${count} simulated users in ${region}...`, 'info');
+
+  for (let i = 0; i < count; i++) {
+    const idx = ++state.userCounter;
+    const username = `bot_${idx}_${Math.random().toString(36).slice(2,6)}`;
+    const email = `${username}@test.local`;
+    const password = `TestPass${idx}!`;
+
+    try {
+      const signupResult = await apiPost('/auth/signup', { username, email, password, region });
+
+      const user = {
+        id: signupResult.user.id,
+        username,
+        email,
+        password,
+        token: signupResult.tokens.accessToken,
+        refreshToken: signupResult.tokens.refreshToken,
+        region,
+        rating: signupResult.user.rating || 1200,
+        ws: null,
+        wsStatus: 'disconnected',
+        status: 'offline',
+        matchId: null,
+      };
+      state.users.push(user);
+      feed(`✓ Created user: ${username}`, 'success');
+    } catch (err) {
+      feed(`✗ Failed to create user ${username}: ${err.message}`, 'error');
+    }
+    fill.style.width = `${((i+1)/count) * 100}%`;
+  }
+
+  btn.disabled = false;
+  setTimeout(() => { bar.style.display = 'none'; fill.style.width = '0%'; }, 1000);
+  updateUserList();
+  updateStats();
+}
+
+function connectUser(user) {
+  return new Promise((resolve) => {
+    if (user.ws && user.ws.readyState === WebSocket.OPEN) {
+      resolve();
+      return;
+    }
+
+    const ws = new WebSocket(`${WS_URL}?token=${user.token}`);
+    user.ws = ws;
+    user.wsStatus = 'connecting';
+
+    ws.onopen = () => {
+      user.wsStatus = 'connected';
+      feed(`↔ ${user.username} connected via WebSocket`, 'ws');
+      updateUserList();
+      updateStats();
+      resolve();
+    };
+
+    ws.onmessage = (evt) => {
+      state.messageCount++;
+      try {
+        const msg = JSON.parse(evt.data);
+        handleUserMessage(user, msg);
+      } catch {}
+    };
+
+    ws.onclose = (evt) => {
+      user.wsStatus = 'disconnected';
+      user.status = 'offline';
+      user.matchId = null;
+      feed(`✗ ${user.username} disconnected (${evt.code})`, 'warn');
+      updateUserList();
+      updateStats();
+      resolve();
+    };
+
+    ws.onerror = () => {
+      user.wsStatus = 'error';
+      feed(`✗ ${user.username} WS error`, 'error');
+      resolve();
+    };
+
+    // Timeout
+    setTimeout(() => {
+      if (user.wsStatus === 'connecting') {
+        ws.close();
+        user.wsStatus = 'disconnected';
+        resolve();
+      }
+    }, 5000);
+  });
+}
+
+function handleUserMessage(user, msg) {
+  switch (msg.type) {
+    case 'connected':
+      user.status = 'online';
+      break;
+    case 'queue_joined':
+      user.status = 'in_queue';
+      feed(`⏳ ${user.username} joined queue (${msg.data?.region || user.region})`, 'info');
+      break;
+    case 'queue_left':
+      user.status = 'online';
+      feed(`↩ ${user.username} left queue`, 'info');
+      break;
+    case 'match_found':
+      user.status = 'in_match';
+      user.matchId = msg.data?.matchId;
+      const opponents = (msg.data?.players || []).filter(p => p.userId !== user.id).map(p => p.username).join(', ');
+      feed(`⚔️ ${user.username} matched! vs ${opponents}`, 'success');
+      addMatch(msg.data);
+      break;
+    case 'game_state':
+      updateArenaState(msg.data);
+      updateMatchState(msg.data);
+      break;
+    case 'match_ended':
+      user.status = 'online';
+      const w = msg.data?.winner;
+      feed(`🏁 Match ended! Winner: ${w?.username || 'Draw'} (Score: ${w?.score || 0})`, 'success');
+      removeMatch(msg.data?.matchId);
+      user.matchId = null;
+      break;
+    case 'chat':
+      feed(`💬 [${msg.data?.username}]: ${msg.data?.message}`, 'info');
+      break;
+    case 'action_rejected':
+      break;
+    case 'player_disconnected':
+      feed(`⚠ Player ${msg.data?.username} disconnected from match`, 'warn');
+      break;
+    case 'pong':
+      break;
+    case 'error':
+      feed(`⚠ Server error for ${user.username}: ${msg.data?.message}`, 'error');
+      break;
+    case 'server_shutdown':
+      feed(`🔴 Server shutting down`, 'error');
+      break;
+    default:
+      feed(`📩 ${user.username} ← ${msg.type}`, 'ws');
+  }
+  updateUserList();
+  updateStats();
+}
+
+async function connectAllUsers() {
+  feed('Connecting all users...', 'info');
+  const disconnected = state.users.filter(u => u.wsStatus !== 'connected');
+  for (const u of disconnected) {
+    await connectUser(u);
+    await sleep(50);
+  }
+  feed(`${disconnected.length} users connected`, 'success');
+}
+
+function disconnectAllUsers() {
+  let count = 0;
+  for (const u of state.users) {
+    if (u.ws && u.ws.readyState === WebSocket.OPEN) {
+      u.ws.close();
+      count++;
+    }
+  }
+  feed(`Disconnected ${count} users`, 'warn');
+}
+
+function sendWsMessage(user, msg) {
+  if (user.ws && user.ws.readyState === WebSocket.OPEN) {
+    user.ws.send(JSON.stringify(msg));
+    state.messageCount++;
+  }
+}
+
+async function queueAllConnected() {
+  const connected = state.users.filter(u => u.wsStatus === 'connected' && u.status === 'online');
+  feed(`Queueing ${connected.length} connected users...`, 'info');
+  for (const u of connected) {
+    sendWsMessage(u, { type: 'join_queue' });
+    await sleep(30);
+  }
+}
+
+function dequeueAll() {
+  const queued = state.users.filter(u => u.status === 'in_queue');
+  for (const u of queued) {
+    sendWsMessage(u, { type: 'leave_queue' });
+  }
+  feed(`Dequeued ${queued.length} users`, 'info');
+}
+
+// ===================== LOAD TESTING =====================
+async function startLoadTest() {
+  if (state.loadTestRunning) return;
+  state.loadTestRunning = true;
+
+  const count = parseInt(document.getElementById('loadUsers').value) || 10;
+  const action = document.getElementById('loadAction').value;
+  const bar = document.getElementById('loadProgress');
+  const fill = document.getElementById('loadProgressFill');
+  const statsEl = document.getElementById('loadStats');
+
+  document.getElementById('btnLoadTest').style.display = 'none';
+  document.getElementById('btnStopLoad').style.display = 'block';
+  bar.style.display = 'block';
+  statsEl.style.display = 'block';
+
+  feed(`🚀 Load test started: ${count} users, mode: ${action}`, 'success');
+
+  const abortController = new AbortController();
+  state.loadTestAbort = abortController;
+
+  let created = 0, connected = 0, queued = 0, errors = 0;
+  const startTime = Date.now();
+
+  for (let i = 0; i < count && !abortController.signal.aborted; i++) {
+    const idx = ++state.userCounter;
+    const region = ['us-east', 'eu-west', 'asia'][idx % 3];
+    const username = `load_${idx}_${Math.random().toString(36).slice(2,5)}`;
+    const email = `${username}@load.test`;
+    const password = `LoadTest${idx}!`;
+
+    try {
+      const signupResult = await apiPost('/auth/signup', { username, email, password, region });
+
+      const user = {
+        id: signupResult.user.id,
+        username, email, password,
+        token: signupResult.tokens.accessToken,
+        refreshToken: signupResult.tokens.refreshToken,
+        region, rating: signupResult.user.rating || 1200,
+        ws: null, wsStatus: 'disconnected',
+        status: 'offline', matchId: null,
+      };
+      state.users.push(user);
+      created++;
+
+      if (action !== 'connect_only' || action === 'connect_only') {
+        await connectUser(user);
+        if (user.wsStatus === 'connected') {
+          connected++;
+
+          if (action === 'connect_queue' || action === 'full_cycle') {
+            await sleep(100);
+            sendWsMessage(user, { type: 'join_queue' });
+            queued++;
+          }
+
+          if (action === 'full_cycle') {
+            // Start random actions
+            startBotActions(user, abortController.signal);
+          }
+        }
+      }
+    } catch (err) {
+      errors++;
+      feed(`Load test error: ${err.message}`, 'error');
+    }
+
+    fill.style.width = `${((i+1)/count) * 100}%`;
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    statsEl.innerHTML = `Created: ${created} | Connected: ${connected} | Queued: ${queued} | Errors: ${errors} | Time: ${elapsed}s`;
+    updateUserList();
+    updateStats();
+  }
+
+  state.loadTestRunning = false;
+  document.getElementById('btnLoadTest').style.display = 'block';
+  document.getElementById('btnStopLoad').style.display = 'none';
+
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+  feed(`🏁 Load test complete: ${created} created, ${connected} connected, ${errors} errors in ${elapsed}s`, 'success');
+  setTimeout(() => { bar.style.display = 'none'; fill.style.width = '0%'; }, 2000);
+}
+
+function stopLoadTest() {
+  if (state.loadTestAbort) {
+    state.loadTestAbort.abort();
+    feed('⏹ Load test stopped', 'warn');
+  }
+  state.loadTestRunning = false;
+  document.getElementById('btnLoadTest').style.display = 'block';
+  document.getElementById('btnStopLoad').style.display = 'none';
+}
+
+function startBotActions(user, signal) {
+  const interval = setInterval(() => {
+    if (signal.aborted || user.wsStatus !== 'connected') {
+      clearInterval(interval);
+      return;
+    }
+    if (user.status === 'in_match') {
+      const actions = ['move', 'move', 'move', 'attack'];
+      const action = actions[Math.floor(Math.random() * actions.length)];
+      if (action === 'move') {
+        sendWsMessage(user, {
+          type: 'game_action',
+          data: { action: 'move', dx: Math.floor(Math.random()*21)-10, dy: Math.floor(Math.random()*21)-10 }
+        });
+      } else {
+        // Get other players in match to attack
+        const match = state.matches.get(user.matchId);
+        if (match) {
+          const otherPlayers = (match.players || []).filter(p => p.id !== user.id && p.userId !== user.id);
+          if (otherPlayers.length > 0) {
+            const target = otherPlayers[Math.floor(Math.random() * otherPlayers.length)];
+            sendWsMessage(user, {
+              type: 'game_action',
+              data: { action: 'attack', targetId: target.userId || target.id }
+            });
+          }
+        }
+      }
+    }
+  }, 200);
+}
+
+// ===================== MATCHES =====================
+function addMatch(data) {
+  if (!data?.matchId) return;
+  state.matches.set(data.matchId, {
+    matchId: data.matchId,
+    players: data.players || [],
+    state: null,
+    startedAt: Date.now(),
+  });
+  updateMatchList();
+}
+
+function removeMatch(matchId) {
+  if (matchId) state.matches.delete(matchId);
+  updateMatchList();
+}
+
+function updateMatchState(gameState) {
+  if (!gameState?.matchId) return;
+  const match = state.matches.get(gameState.matchId);
+  if (match) {
+    match.state = gameState;
+  }
+  state.arenaState = gameState;
+  drawArena();
+  updateMatchList();
+}
+
+function updateArenaState(data) {
+  state.arenaState = data;
+}
+
+function updateMatchList() {
+  const el = document.getElementById('matchesList');
+  if (state.matches.size === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">⚔️</div>No active matches. Queue users to start matchmaking.</div>';
+    return;
+  }
+
+  let html = '';
+  for (const [id, match] of state.matches) {
+    const gs = match.state;
+    const tick = gs?.tick || 0;
+    html += `<div class="match-card">
+      <h4>Match ${id.slice(0,8)}... <span style="font-size:11px;color:var(--muted);font-weight:400">Tick: ${tick}</span></h4>
+      <div class="match-players">`;
+
+    const players = gs?.players || match.players;
+    if (Array.isArray(players)) {
+      for (const p of players) {
+        const hp = p.health ?? 100;
+        const hpColor = hp > 60 ? 'var(--green)' : hp > 30 ? 'var(--yellow)' : 'var(--red)';
+        html += `<div class="match-player">
+          <div style="font-weight:700">${escapeHtml(p.username)}</div>
+          <div style="font-size:11px;margin-top:2px">HP: ${hp} | Score: ${p.score || 0}</div>
+          <div class="hp-bar"><div class="hp-fill" style="width:${hp}%;background:${hpColor}"></div></div>
+        </div>`;
+      }
+    } else if (typeof players === 'object') {
+      for (const [pid, p] of Object.entries(players)) {
+        const hp = p.health ?? 100;
+        const hpColor = hp > 60 ? 'var(--green)' : hp > 30 ? 'var(--yellow)' : 'var(--red)';
+        html += `<div class="match-player">
+          <div style="font-weight:700">${escapeHtml(p.username || pid.slice(0,8))}</div>
+          <div style="font-size:11px;margin-top:2px">HP: ${hp} | Score: ${p.score || 0} | ${p.alive ? 'Alive' : 'Dead'}</div>
+          <div class="hp-bar"><div class="hp-fill" style="width:${hp}%;background:${hpColor}"></div></div>
+        </div>`;
+      }
+    }
+
+    html += `</div></div>`;
+  }
+  el.innerHTML = html;
+}
+
+// ===================== ARENA DRAWING =====================
+function drawArena() {
+  const canvas = document.getElementById('arenaCanvas');
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const scale = w / 1000;
+
+  // Background
+  ctx.fillStyle = '#0c1220';
+  ctx.fillRect(0, 0, w, h);
+
+  // Grid
+  ctx.strokeStyle = '#1a2235';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 1000; i += 100) {
+    ctx.beginPath();
+    ctx.moveTo(i * scale, 0);
+    ctx.lineTo(i * scale, h);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, i * scale);
+    ctx.lineTo(w, i * scale);
+    ctx.stroke();
+  }
+
+  const gs = state.arenaState;
+  if (!gs) {
+    ctx.fillStyle = '#94a3b8';
+    ctx.textAlign = 'center';
+    ctx.font = '14px system-ui';
+    ctx.fillText('No active game. Queue users to start a match.', w/2, h/2);
+    return;
+  }
+
+  // Draw players
+  const players = gs.players;
+  const colors = ['#6366f1', '#06b6d4', '#f97316', '#22c55e', '#eab308', '#ef4444', '#ec4899', '#8b5cf6'];
+  let pIdx = 0;
+
+  const playerList = Array.isArray(players) ? players : Object.values(players);
+
+  for (const p of playerList) {
+    const x = (p.x || 0) * scale;
+    const y = (p.y || 0) * scale;
+    const color = colors[pIdx % colors.length];
+    pIdx++;
+
+    if (!p.alive) {
+      // Dead player
+      ctx.globalAlpha = 0.3;
+      ctx.beginPath();
+      ctx.arc(x, y, 6, 0, Math.PI * 2);
+      ctx.fillStyle = '#ef4444';
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      ctx.fillStyle = '#ef4444';
+      ctx.font = '9px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('☠ ' + (p.username || ''), x, y - 12);
+      continue;
+    }
+
+    // Health ring
+    const hp = (p.health || 0) / 100;
+    ctx.beginPath();
+    ctx.arc(x, y, 10, -Math.PI/2, -Math.PI/2 + Math.PI * 2 * hp);
+    ctx.strokeStyle = hp > 0.6 ? '#22c55e' : hp > 0.3 ? '#eab308' : '#ef4444';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Player dot
+    ctx.beginPath();
+    ctx.arc(x, y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    // Glow
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Label
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '10px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(p.username || '?', x, y - 16);
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '8px system-ui';
+    ctx.fillText(`♥${p.health} ⭐${p.score || 0}`, x, y + 20);
+  }
+
+  // Match info
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '11px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText(`Match: ${(gs.matchId || '').slice(0,8)}...  Tick: ${gs.tick || 0}  Status: ${gs.status || '?'}`, 10, 16);
+}
+
+// ===================== UI UPDATES =====================
+function updateUserList() {
+  const el = document.getElementById('userList');
+  document.getElementById('userCountBadge').textContent = `(${state.users.length})`;
+
+  if (state.users.length === 0) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px">No users yet. Add some above.</div>';
+    return;
+  }
+
+  // Show last 50 users
+  const display = state.users.slice(-50);
+  let html = '';
+  for (const u of display) {
+    const dotColor = u.wsStatus === 'connected' ?
+      (u.status === 'in_match' ? 'var(--accent2)' : u.status === 'in_queue' ? 'var(--yellow)' : 'var(--green)') :
+      'var(--muted)';
+    const badge = u.wsStatus === 'connected' ? u.status : 'offline';
+    html += `<div class="user-item">
+      <span class="dot" style="background:${dotColor}"></span>
+      <span class="uname">${escapeHtml(u.username)}</span>
+      <span class="badge ${badge.replace('-','_')}">${badge}</span>
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+
+function updateStats() {
+  document.getElementById('statUsers').textContent = state.users.length;
+  document.getElementById('statConnected').textContent = state.users.filter(u => u.wsStatus === 'connected').length;
+  document.getElementById('statInQueue').textContent = state.users.filter(u => u.status === 'in_queue').length;
+  document.getElementById('statMatches').textContent = state.matches.size;
+}
+
+// ===================== POLLING =====================
+async function pollHealth() {
+  try {
+    const health = await apiGet('/health');
+    state.health = health;
+    document.getElementById('headerServerId').textContent = health.serverId;
+    document.getElementById('headerRegion').textContent = health.region;
+    document.getElementById('headerUptime').textContent = formatUptime(health.uptime);
+    document.getElementById('serverDot').className = 'status-dot ok';
+  } catch {
+    document.getElementById('serverDot').className = 'status-dot err';
+  }
+}
+
+async function pollQueues() {
+  try {
+    const data = await apiGet('/matchmaking/status');
+    state.queues = data.queues;
+
+    const maxQ = Math.max(1, ...Object.values(data.queues));
+    for (const [region, count] of Object.entries(data.queues)) {
+      const bar = document.getElementById(`qbar-${region}`);
+      if (bar) {
+        bar.style.width = `${Math.max(2, (count / Math.max(maxQ, 10)) * 100)}%`;
+        bar.textContent = count;
+      }
+    }
+  } catch {}
+}
+
+async function pollLeaderboard() {
+  try {
+    const data = await apiGet('/leaderboard?limit=20');
+    const el = document.getElementById('leaderboardList');
+    if (!data.leaderboard || data.leaderboard.length === 0) {
+      el.innerHTML = '<div class="empty-state"><div class="icon">🏆</div>No leaderboard data yet.</div>';
+      return;
+    }
+    let html = '';
+    data.leaderboard.forEach((entry, i) => {
+      const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+      html += `<div class="lb-entry">
+        <div class="lb-rank ${rankClass}">#${i+1}</div>
+        <div class="lb-name">${escapeHtml(entry.username || entry.userId?.slice(0,8) || '?')}</div>
+        <div class="lb-score">${entry.score ?? entry.rating ?? 0}</div>
+      </div>`;
+    });
+    el.innerHTML = html;
+  } catch {}
+}
+
+function recordChartData() {
+  const now = Date.now();
+  const connected = state.users.filter(u => u.wsStatus === 'connected').length;
+  const msgPerSec = state.messageCount - state.lastMessageCount;
+  state.lastMessageCount = state.messageCount;
+
+  const cd = state.chartData;
+  cd.connections.push({ t: now, v: connected });
+  cd.messages.push({ t: now, v: msgPerSec });
+  cd.queues.push({ t: now, v: state.queues });
+  cd.matches.push({ t: now, v: state.matches.size });
+
+  // Keep max 120 points (2 min at 1/sec)
+  const MAX = 120;
+  if (cd.connections.length > MAX) cd.connections.shift();
+  if (cd.messages.length > MAX) cd.messages.shift();
+  if (cd.queues.length > MAX) cd.queues.shift();
+  if (cd.matches.length > MAX) cd.matches.shift();
+}
+
+// ===================== CHARTS =====================
+function drawLineChart(canvasId, data, color, label) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width - 24;
+  canvas.height = rect.height - 36;
+  const w = canvas.width, h = canvas.height;
+
+  ctx.clearRect(0, 0, w, h);
+
+  if (data.length < 2) {
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '11px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Collecting data...', w/2, h/2);
+    return;
+  }
+
+  const values = data.map(d => d.v);
+  const maxVal = Math.max(1, ...values);
+  const padding = { top: 10, right: 10, bottom: 20, left: 40 };
+  const chartW = w - padding.left - padding.right;
+  const chartH = h - padding.top - padding.bottom;
+
+  // Y-axis
+  ctx.fillStyle = '#64748b';
+  ctx.font = '9px system-ui';
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const val = Math.round(maxVal * (1 - i/4));
+    const y = padding.top + (chartH * i / 4);
+    ctx.fillText(val.toString(), padding.left - 6, y + 3);
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(padding.left, y);
+    ctx.lineTo(w - padding.right, y);
+    ctx.stroke();
+  }
+
+  // Line
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+
+  for (let i = 0; i < values.length; i++) {
+    const x = padding.left + (i / (values.length - 1)) * chartW;
+    const y = padding.top + chartH * (1 - values[i] / maxVal);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Fill under
+  ctx.lineTo(padding.left + chartW, padding.top + chartH);
+  ctx.lineTo(padding.left, padding.top + chartH);
+  ctx.closePath();
+  ctx.fillStyle = color + '15';
+  ctx.fill();
+
+  // Current value
+  const lastVal = values[values.length - 1];
+  ctx.fillStyle = color;
+  ctx.font = 'bold 12px system-ui';
+  ctx.textAlign = 'right';
+  ctx.fillText(lastVal.toString(), w - padding.right, padding.top - 2);
+}
+
+function drawMultiLineChart(canvasId, data) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width - 24;
+  canvas.height = rect.height - 36;
+  const w = canvas.width, h = canvas.height;
+
+  ctx.clearRect(0, 0, w, h);
+
+  if (data.length < 2) {
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '11px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Collecting data...', w/2, h/2);
+    return;
+  }
+
+  const regions = { 'us-east': '#22c55e', 'eu-west': '#06b6d4', 'asia': '#f97316' };
+  const padding = { top: 10, right: 10, bottom: 20, left: 40 };
+  const chartW = w - padding.left - padding.right;
+  const chartH = h - padding.top - padding.bottom;
+
+  let maxVal = 1;
+  for (const d of data) {
+    for (const v of Object.values(d.v)) {
+      if (v > maxVal) maxVal = v;
+    }
+  }
+
+  // Y-axis
+  ctx.fillStyle = '#64748b';
+  ctx.font = '9px system-ui';
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const val = Math.round(maxVal * (1 - i/4));
+    const y = padding.top + (chartH * i / 4);
+    ctx.fillText(val.toString(), padding.left - 6, y + 3);
+  }
+
+  for (const [region, color] of Object.entries(regions)) {
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < data.length; i++) {
+      const val = data[i].v[region] || 0;
+      const x = padding.left + (i / (data.length - 1)) * chartW;
+      const y = padding.top + chartH * (1 - val / maxVal);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  // Legend
+  let lx = padding.left;
+  ctx.font = '9px system-ui';
+  for (const [region, color] of Object.entries(regions)) {
+    ctx.fillStyle = color;
+    ctx.fillRect(lx, h - 12, 8, 8);
+    ctx.fillStyle = '#94a3b8';
+    ctx.textAlign = 'left';
+    ctx.fillText(region, lx + 12, h - 4);
+    lx += 70;
+  }
+}
+
+function drawAllCharts() {
+  drawLineChart('chartConnections', state.chartData.connections, '#6366f1', 'Connections');
+  drawLineChart('chartMessages', state.chartData.messages, '#06b6d4', 'Msg/s');
+  drawMultiLineChart('chartQueues', state.chartData.queues);
+  drawLineChart('chartMatches', state.chartData.matches, '#f97316', 'Matches');
+}
+
+// ===================== HELPERS =====================
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function formatUptime(sec) {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = Math.floor(sec % 60);
+  return `${h}h ${m}m ${s}s`;
+}
+
+// ===================== INIT =====================
+function init() {
+  feed('Dashboard initialized. Ready to simulate.', 'success');
+  updateUserList();
+  updateStats();
+  drawArena();
+
+  // Poll health every 3s
+  pollHealth();
+  setInterval(pollHealth, 3000);
+
+  // Poll queues every 2s
+  pollQueues();
+  setInterval(pollQueues, 2000);
+
+  // Poll leaderboard every 5s
+  setInterval(pollLeaderboard, 5000);
+
+  // Record chart data every 1s
+  setInterval(() => {
+    recordChartData();
+    if (document.querySelector('.tab[data-tab="metrics"]').classList.contains('active')) {
+      drawAllCharts();
+    }
+  }, 1000);
+
+  // Redraw arena continuously
+  setInterval(drawArena, 100);
+
+  // Ping connected users every 20s
+  setInterval(() => {
+    for (const u of state.users) {
+      if (u.ws && u.ws.readyState === WebSocket.OPEN) {
+        sendWsMessage(u, { type: 'ping' });
+      }
+    }
+  }, 20000);
+}
+
+window.addEventListener('load', init);
+window.addEventListener('resize', () => {
+  drawArena();
+  if (document.querySelector('.tab[data-tab="metrics"]').classList.contains('active')) {
+    drawAllCharts();
+  }
+});
+</script>
+</body>
+</html>
