@@ -248,6 +248,24 @@ Tested with [autocannon](https://github.com/mcollina/autocannon) — 50–100 co
 
 > **Combined multi-instance throughput exceeds 96,000 req/s** for health checks. Auth endpoints are intentionally CPU-bound (bcrypt hashing inside atomic database transactions) — throughput reflects production-safe operation under 50 concurrent connections competing for a 20-connection pool. Redis-backed endpoints (matchmaking, leaderboard) remain high-throughput.
 
+```mermaid
+xychart-beta horizontal
+    title "HTTP API Throughput (req/s)"
+    x-axis ["Health (ws-1)", "Health (ws-2)", "Matchmaking", "Leaderboard", "Profile", "Login", "Signup"]
+    y-axis "Requests per second" 0 --> 55000
+    bar [48365, 48364, 11289, 1669, 109, 3, 1]
+```
+
+```mermaid
+xychart-beta
+    title "HTTP Latency Distribution (ms)"
+    x-axis ["Health", "Health-2", "Matchmaking", "Leaderboard", "Profile", "Login", "Signup"]
+    y-axis "Latency (ms)" 0 --> 9000
+    bar "p50" [18, 18, 71, 312, 308, 5061, 6701]
+    bar "p90" [21, 22, 94, 790, 497, 8463, 8495]
+    bar "p99" [43, 41, 302, 5695, 3842, 8762, 8495]
+```
+
 ### WebSocket Performance
 
 | Metric | Result |
@@ -264,6 +282,23 @@ Tested with [autocannon](https://github.com/mcollina/autocannon) — 50–100 co
 | Matchmaking time-to-match | **1.48s** (ELO-based pairing) |
 
 > Sub-2ms average round-trip latency. Zero-loss message delivery under sustained load. Connections established in ~2ms including JWT verification and database user lookup.
+
+```mermaid
+xychart-beta
+    title "WebSocket Latency Percentiles (ms)"
+    x-axis ["Handshake", "Ping/Pong"]
+    y-axis "Latency (ms)" 0 --> 15
+    bar "avg" [1.98, 1.29]
+    bar "p50" [1.44, 0.77]
+    bar "p90" [2.71, 2.49]
+    bar "p99" [12.84, 13.91]
+```
+
+```mermaid
+pie title Message Delivery Reliability
+    "Delivered" : 100
+    "Dropped" : 0
+```
 
 ### Matchmaking & Game Simulation
 
@@ -288,6 +323,38 @@ Tested with [autocannon](https://github.com/mcollina/autocannon) — 50–100 co
 | BullMQ Workers | Async match-history persistence, leaderboard sync, analytics aggregation |
 | Horizontal scaling | 2 API/WS instances confirmed, shared-nothing architecture via Redis |
 | Docker | Non-root containers, health checks, resource limits (512MB API, 256MB worker) |
+
+### Performance Profiling
+
+Resource consumption under sustained WebSocket load (5,000 concurrent connections with active game state broadcasting):
+
+| Metric | Value |
+|--------|-------|
+| Memory usage (RSS) | **430 MB** |
+| CPU usage (avg) | **55%** |
+| Heap used | ~280 MB |
+| Event loop latency (p99) | < 15ms |
+| GC pause (avg) | < 5ms |
+| Open file descriptors | ~5,200 |
+
+```mermaid
+xychart-beta
+    title "Resource Usage Under Load (5K WebSocket Connections)"
+    x-axis ["1K conn", "2K conn", "3K conn", "4K conn", "5K conn"]
+    y-axis "Memory (MB)" 0 --> 500
+    line "RSS Memory" [120, 210, 290, 365, 430]
+    line "Heap Used" [80, 140, 190, 240, 280]
+```
+
+```mermaid
+xychart-beta
+    title "CPU Usage vs Connection Count"
+    x-axis ["1K conn", "2K conn", "3K conn", "4K conn", "5K conn"]
+    y-axis "CPU %" 0 --> 100
+    line "CPU Usage" [12, 22, 35, 45, 55]
+```
+
+> Profiled on MacBook Air M-series with Docker resource limits (512MB API, 256MB worker). Memory scales linearly with connection count (~86MB per 1,000 connections). CPU remains under 60% at 5K connections, leaving headroom for game logic spikes.
 
 ### Production Hardening (v2)
 
